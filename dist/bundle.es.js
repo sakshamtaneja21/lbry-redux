@@ -4326,7 +4326,6 @@ const blockChannelReducer = handleActions({
   [TOGGLE_BLOCK_CHANNEL]: (state, action) => {
     const { blockedChannels } = state;
     const { uri } = action.data;
-    console.log('test', uri);
     let newBlockedChannels = blockedChannels.slice();
 
     if (newBlockedChannels.includes(uri)) {
@@ -4759,7 +4758,9 @@ const selectUnfollowedTags = reselect.createSelector(selectKnownTagsByName, sele
 
 const selectState$a = state => state.blockedChannels || {};
 
-const selectBlockedChannels = reselect.createSelector(selectState$a, state => state);
+const selectBlockedChannels = reselect.createSelector(selectState$a, state => state.blockedChannels);
+
+const selectBlockedChannelsCount = reselect.createSelector(selectState$a, state => state.blockedChannels.length);
 
 const selectChannelIsBlocked = uri => reselect.createSelector(selectState$a, state => {
   return state.blockedChannels.includes(uri);
@@ -4900,6 +4901,7 @@ exports.selectAllFetchingChannelClaims = selectAllFetchingChannelClaims;
 exports.selectAllMyClaimsByOutpoint = selectAllMyClaimsByOutpoint;
 exports.selectBalance = selectBalance;
 exports.selectBlockedChannels = selectBlockedChannels;
+exports.selectBlockedChannelsCount = selectBlockedChannelsCount;
 exports.selectBlocks = selectBlocks;
 exports.selectChannelClaimCounts = selectChannelClaimCounts;
 exports.selectChannelIsBlocked = selectChannelIsBlocked;
