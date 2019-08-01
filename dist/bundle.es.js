@@ -7,7 +7,6 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 require('proxy-polyfill');
 var reselect = require('reselect');
 var uuid = _interopDefault(require('uuid/v4'));
-var fs = _interopDefault(require('fs'));
 var path = _interopDefault(require('path'));
 
 const MINIMUM_PUBLISH_BID = 0.00000001;

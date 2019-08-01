@@ -13,7 +13,7 @@ import {
   selectMyClaimsWithoutChannels,
 } from 'redux/selectors/claims';
 import { selectPublishFormValues, selectMyClaimForUri } from 'redux/selectors/publish';
-import fs from 'fs';
+//import fs from 'fs';
 import path from 'path';
 
 export const doResetThumbnailStatus = () => (dispatch: Dispatch) => {
