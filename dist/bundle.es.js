@@ -4722,7 +4722,7 @@ const selectUnfollowedTags = reselect.createSelector(selectKnownTagsByName, sele
   Object.keys(tagsByName).forEach(key => {
     if (!followedTagsSet.has(key)) {
       const { name } = tagsByName[key];
-      tagsToReturn.push({ name });
+      tagsToReturn.push({ name: name.toLowerCase() });
     }
   });
 
