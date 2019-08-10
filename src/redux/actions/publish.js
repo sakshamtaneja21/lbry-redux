@@ -111,7 +111,7 @@ export const doUploadThumbnail = (filePath: string, thumbnailBuffer: Uint8Array,
                 type: ACTIONS.UPDATE_PUBLISH_FORM,
                 data: {
                   uploadThumbnailStatus: THUMBNAIL_STATUSES.COMPLETE,
-                  thumbnail: `${json.data.url}${fileExt}`,
+                  thumbnail: `${json.data.url}.${fileExt}`,
                 },
               })
             : uploadError(json.message)
