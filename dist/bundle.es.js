@@ -2666,7 +2666,7 @@ const selectSearchDownloadUris = query => reselect.createSelector(selectFileInfo
         uriParams.claimId = claimId;
       }
       uriParams.channelName = channelName;
-      uriParams.contentName = claimName;
+      uriParams.claimName = claimName;
     } else {
       uriParams.claimId = claimId;
       uriParams.claimName = claimName;

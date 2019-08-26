@@ -219,7 +219,7 @@ export const selectSearchDownloadUris = query =>
               uriParams.claimId = claimId;
             }
             uriParams.channelName = channelName;
-            uriParams.contentName = claimName;
+            uriParams.claimName = claimName;
           } else {
             uriParams.claimId = claimId;
             uriParams.claimName = claimName;
