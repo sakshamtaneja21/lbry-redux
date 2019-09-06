@@ -480,6 +480,12 @@ export const makeSelectFirstRecommendedFileForUri = (uri: string) =>
     recommendedContent => (recommendedContent ? recommendedContent[0] : null)
   );
 
+export const makeSelectFirstUnwatchedFileForUri = (uri: string) =>
+  createSelector(
+    makeSelectRecommendedContentForUri(uri),
+    recommendedContent => (recommendedContent ? recommendedContent[0] : null)
+  );
+
 // Returns the associated channel uri for a given claim uri
 // accepts a regular claim uri lbry://something
 // returns the channel uri that created this claim lbry://@channel

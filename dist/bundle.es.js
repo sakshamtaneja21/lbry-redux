@@ -112,6 +112,7 @@ const PUBLISH_FAILED = 'PUBLISH_FAILED';
 const SET_PLAYING_URI = 'SET_PLAYING_URI';
 const SET_CONTENT_POSITION = 'SET_CONTENT_POSITION';
 const SET_CONTENT_LAST_VIEWED = 'SET_CONTENT_LAST_VIEWED';
+const SET_CONTENT_HISTORY_PAGE = 'SET_CONTENT_HISTORY_PAGE';
 const CLEAR_CONTENT_HISTORY_URI = 'CLEAR_CONTENT_HISTORY_URI';
 const CLEAR_CONTENT_HISTORY_ALL = 'CLEAR_CONTENT_HISTORY_ALL';
 const CLAIM_SEARCH_STARTED = 'CLAIM_SEARCH_STARTED';
@@ -343,6 +344,7 @@ var action_types = /*#__PURE__*/Object.freeze({
   SET_PLAYING_URI: SET_PLAYING_URI,
   SET_CONTENT_POSITION: SET_CONTENT_POSITION,
   SET_CONTENT_LAST_VIEWED: SET_CONTENT_LAST_VIEWED,
+  SET_CONTENT_HISTORY_PAGE: SET_CONTENT_HISTORY_PAGE,
   CLEAR_CONTENT_HISTORY_URI: CLEAR_CONTENT_HISTORY_URI,
   CLEAR_CONTENT_HISTORY_ALL: CLEAR_CONTENT_HISTORY_ALL,
   CLAIM_SEARCH_STARTED: CLAIM_SEARCH_STARTED,
@@ -3406,11 +3408,55 @@ const doUpdateSearchOptions = newOptions => (dispatch, getState) => {
   }
 };
 
+//      
+
 function savePosition(claimId, outpoint, position) {
   return dispatch => {
     dispatch({
       type: SET_CONTENT_POSITION,
       data: { claimId, outpoint, position }
+    });
+  };
+}
+
+function doSetContentHistoryItem(uri) {
+  return dispatch => {
+    dispatch({
+      type: SET_CONTENT_LAST_VIEWED,
+      data: { uri, lastViewed: Date.now() }
+    });
+  };
+}
+
+function doClearContentHistoryUri(uri) {
+  return dispatch => {
+    dispatch({
+      type: CLEAR_CONTENT_HISTORY_URI,
+      data: { uri }
+    });
+  };
+}
+
+function doSetPlayingUri(uri) {
+  return dispatch => {
+    dispatch({
+      type: SET_PLAYING_URI,
+      data: { uri }
+    });
+  };
+}
+
+function doClearContentHistoryAll() {
+  return dispatch => {
+    dispatch({ type: CLEAR_CONTENT_HISTORY_ALL });
+  };
+}
+
+function doSetHistoryPage(page) {
+  return dispatch => {
+    dispatch({
+      type: SET_CONTENT_HISTORY_PAGE,
+      data: { page }
     });
   };
 }
@@ -3899,7 +3945,10 @@ var _extends$7 = Object.assign || function (target) { for (var i = 1; i < argume
 
 const reducers$1 = {};
 const defaultState$2 = {
-  positions: {}
+  playingUri: null,
+  channelClaimCounts: {},
+  positions: {},
+  history: []
 };
 
 reducers$1[SET_CONTENT_POSITION] = (state, action) => {
@@ -3912,6 +3961,30 @@ reducers$1[SET_CONTENT_POSITION] = (state, action) => {
     })
   });
 };
+
+reducers$1[SET_PLAYING_URI] = (state, action) => Object.assign({}, state, {
+  playingUri: action.data.uri
+});
+
+reducers$1[SET_CONTENT_LAST_VIEWED] = (state, action) => {
+  const { uri, lastViewed } = action.data;
+  const { history } = state;
+  const historyObj = { uri, lastViewed };
+  const index = history.findIndex(i => i.uri === uri);
+  const newHistory = index === -1 ? [historyObj].concat(history) : [historyObj].concat(history.slice(0, index), history.slice(index + 1));
+  return _extends$7({}, state, { history: [...newHistory] });
+};
+
+reducers$1[CLEAR_CONTENT_HISTORY_URI] = (state, action) => {
+  const { uri } = action.data;
+  const { history } = state;
+  const index = history.findIndex(i => i.uri === uri);
+  return index === -1 ? state : _extends$7({}, state, {
+    history: history.slice(0, index).concat(history.slice(index + 1))
+  });
+};
+
+reducers$1[CLEAR_CONTENT_HISTORY_ALL] = state => _extends$7({}, state, { history: [] });
 
 function contentReducer(state = defaultState$2, action) {
   const handler = reducers$1[action.type];
@@ -4702,7 +4775,16 @@ const walletReducer = handleActions({
   })
 }, defaultState$a);
 
+const RECENT_HISTORY_AMOUNT = 10;
+const HISTORY_ITEMS_PER_PAGE = 50;
+
 const selectState$6 = state => state.content || {};
+
+const selectPlayingUri$1 = reselect.createSelector(selectState$6, state => state.playingUri);
+
+const makeSelectIsPlaying = uri => reselect.createSelector(selectPlayingUri$1, playingUri => playingUri === uri);
+
+const selectRewardContentClaimIds = reselect.createSelector(selectState$6, state => state.rewardedContentClaimIds);
 
 const makeSelectContentPositionForUri = uri => reselect.createSelector(selectState$6, makeSelectClaimForUri(uri), (state, claim) => {
   if (!claim) {
@@ -4711,6 +4793,35 @@ const makeSelectContentPositionForUri = uri => reselect.createSelector(selectSta
   const outpoint = `${claim.txid}:${claim.nout}`;
   const id = claim.claim_id;
   return state.positions[id] ? state.positions[id][outpoint] : null;
+});
+
+const selectHistory = reselect.createSelector(selectState$6, state => state.history || []);
+
+const selectHistoryPageCount = reselect.createSelector(selectHistory, history => Math.ceil(history.length / HISTORY_ITEMS_PER_PAGE));
+
+const makeSelectHistoryForPage = page => reselect.createSelector(selectHistory, selectClaimsByUri, (history, claimsByUri) => {
+  const left = page * HISTORY_ITEMS_PER_PAGE;
+  const historyItemsForPage = history.slice(left, left + HISTORY_ITEMS_PER_PAGE);
+  return historyItemsForPage;
+});
+
+const makeSelectHistoryForUri = uri => reselect.createSelector(selectHistory, history => history.find(i => i.uri === uri));
+
+const makeSelectHasVisitedUri = uri => reselect.createSelector(makeSelectHistoryForUri(uri), history => Boolean(history));
+
+const selectRecentHistory = reselect.createSelector(selectHistory, history => {
+  return history.slice(0, RECENT_HISTORY_AMOUNT);
+});
+
+const makeSelectCategoryListUris = (uris, channel) => reselect.createSelector(makeSelectClaimsInChannelForCurrentPageState(channel), channelClaims => {
+  if (uris) return uris;
+
+  if (channelClaims) {
+    const CATEGORY_LIST_SIZE = 10;
+    return channelClaims.slice(0, CATEGORY_LIST_SIZE).map(({ name, claim_id: claimId }) => `${name}#${claimId}`);
+  }
+
+  return null;
 });
 
 var _extends$e = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -4830,6 +4941,8 @@ exports.doBlurSearchInput = doBlurSearchInput;
 exports.doCheckAddressIsMine = doCheckAddressIsMine;
 exports.doCheckPendingPublishes = doCheckPendingPublishes;
 exports.doClaimSearch = doClaimSearch;
+exports.doClearContentHistoryAll = doClearContentHistoryAll;
+exports.doClearContentHistoryUri = doClearContentHistoryUri;
 exports.doClearPublish = doClearPublish;
 exports.doCommentCreate = doCommentCreate;
 exports.doCommentList = doCommentList;
@@ -4858,9 +4971,12 @@ exports.doResolveUris = doResolveUris;
 exports.doSearch = doSearch;
 exports.doSendDraftTransaction = doSendDraftTransaction;
 exports.doSendTip = doSendTip;
+exports.doSetContentHistoryItem = doSetContentHistoryItem;
 exports.doSetDraftTransactionAddress = doSetDraftTransactionAddress;
 exports.doSetDraftTransactionAmount = doSetDraftTransactionAmount;
 exports.doSetFileListSort = doSetFileListSort;
+exports.doSetHistoryPage = doSetHistoryPage;
+exports.doSetPlayingUri = doSetPlayingUri;
 exports.doSetTransactionListFilter = doSetTransactionListFilter;
 exports.doToast = doToast;
 exports.doToggleBlockChannel = doToggleBlockChannel;
@@ -4888,6 +5004,7 @@ exports.isURIClaimable = isURIClaimable;
 exports.isURIValid = isURIValid;
 exports.makeSelectAmountForUri = makeSelectAmountForUri;
 exports.makeSelectCanonicalUrlForUri = makeSelectCanonicalUrlForUri;
+exports.makeSelectCategoryListUris = makeSelectCategoryListUris;
 exports.makeSelectChannelForClaimUri = makeSelectChannelForClaimUri;
 exports.makeSelectClaimForUri = makeSelectClaimForUri;
 exports.makeSelectClaimIsMine = makeSelectClaimIsMine;
@@ -4907,6 +5024,10 @@ exports.makeSelectFileInfoForUri = makeSelectFileInfoForUri;
 exports.makeSelectFileNameForUri = makeSelectFileNameForUri;
 exports.makeSelectFilePartlyDownloaded = makeSelectFilePartlyDownloaded;
 exports.makeSelectFirstRecommendedFileForUri = makeSelectFirstRecommendedFileForUri;
+exports.makeSelectHasVisitedUri = makeSelectHasVisitedUri;
+exports.makeSelectHistoryForPage = makeSelectHistoryForPage;
+exports.makeSelectHistoryForUri = makeSelectHistoryForUri;
+exports.makeSelectIsPlaying = makeSelectIsPlaying;
 exports.makeSelectIsUriResolving = makeSelectIsUriResolving;
 exports.makeSelectLoadingForUri = makeSelectLoadingForUri;
 exports.makeSelectMediaTypeForUri = makeSelectMediaTypeForUri;
@@ -4972,6 +5093,8 @@ exports.selectFileListPublishedSort = selectFileListPublishedSort;
 exports.selectFollowedTags = selectFollowedTags;
 exports.selectGettingNewAddress = selectGettingNewAddress;
 exports.selectHasTransactions = selectHasTransactions;
+exports.selectHistory = selectHistory;
+exports.selectHistoryPageCount = selectHistoryPageCount;
 exports.selectIsFetchingClaimListMine = selectIsFetchingClaimListMine;
 exports.selectIsFetchingFileList = selectIsFetchingFileList;
 exports.selectIsFetchingFileListDownloadedOrPublished = selectIsFetchingFileListDownloadedOrPublished;
@@ -4996,8 +5119,10 @@ exports.selectPublishFormValues = selectPublishFormValues;
 exports.selectPurchaseUriErrorMessage = selectPurchaseUriErrorMessage;
 exports.selectPurchasedUris = selectPurchasedUris;
 exports.selectReceiveAddress = selectReceiveAddress;
+exports.selectRecentHistory = selectRecentHistory;
 exports.selectRecentTransactions = selectRecentTransactions;
 exports.selectResolvingUris = selectResolvingUris;
+exports.selectRewardContentClaimIds = selectRewardContentClaimIds;
 exports.selectSearchBarFocused = selectSearchBarFocused;
 exports.selectSearchOptions = selectSearchOptions;
 exports.selectSearchState = selectState;

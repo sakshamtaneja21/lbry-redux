@@ -85,7 +85,14 @@ export {
   doUpdateSearchOptions,
 } from 'redux/actions/search';
 
-export { savePosition } from 'redux/actions/content';
+export {
+  savePosition,
+  doSetContentHistoryItem,
+  doClearContentHistoryUri,
+  doSetPlayingUri,
+  doClearContentHistoryAll,
+  doSetHistoryPage,
+} from 'redux/actions/content';
 
 export {
   doUpdateBalance,
@@ -133,7 +140,18 @@ export { blockedReducer } from 'redux/reducers/blocked';
 export { walletReducer } from 'redux/reducers/wallet';
 
 // selectors
-export { makeSelectContentPositionForUri } from 'redux/selectors/content';
+export {
+  makeSelectIsPlaying,
+  selectRewardContentClaimIds,
+  makeSelectContentPositionForUri,
+  selectHistory,
+  selectHistoryPageCount,
+  makeSelectHistoryForPage,
+  makeSelectHistoryForUri,
+  makeSelectHasVisitedUri,
+  selectRecentHistory,
+  makeSelectCategoryListUris,
+} from 'redux/selectors/content';
 
 export { selectToast, selectError } from 'redux/selectors/notifications';
 
